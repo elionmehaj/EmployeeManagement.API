@@ -1,10 +1,12 @@
 using EmployeeManagement.API.Data;
 using EmployeeManagement.API.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManagement.API.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class TasksController : ControllerBase
@@ -16,7 +18,6 @@ public class TasksController : ControllerBase
         _db = db;
     }
 
-    // GET /api/tasks?projectId=1
     [HttpGet]
     public async Task<ActionResult<List<TaskItem>>> GetAll([FromQuery] int? projectId)
     {
@@ -46,14 +47,13 @@ public class TasksController : ControllerBase
         return Ok(task);
     }
 
+    [Authorize(Roles = "Admin")] 
     [HttpPost]
     public async Task<ActionResult<TaskItem>> Create(TaskItem task)
     {
-        // Validim minimal: project duhet të ekzistojë
         var projectExists = await _db.Projects.AnyAsync(p => p.Id == task.ProjectId);
         if (!projectExists) return BadRequest("ProjectId is invalid.");
 
-        // Nëse AssignedUserId është dhënë, user duhet të ekzistojë
         if (task.AssignedUserId.HasValue)
         {
             var userExists = await _db.Users.AnyAsync(u => u.Id == task.AssignedUserId.Value);
@@ -66,7 +66,7 @@ public class TasksController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = task.Id }, task);
     }
 
-    // PUT /api/tasks/{id}
+    [Authorize(Roles = "Admin")] 
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, TaskItem task)
     {
@@ -90,7 +90,7 @@ public class TasksController : ControllerBase
         return NoContent();
     }
 
-    // PATCH /api/tasks/{id}/assign/{userId}
+    [Authorize(Roles = "Admin")] 
     [HttpPatch("{id:int}/assign/{userId:int}")]
     public async Task<IActionResult> Assign(int id, int userId)
     {
@@ -106,6 +106,7 @@ public class TasksController : ControllerBase
         return NoContent();
     }
 
+    [Authorize(Roles = "Admin")] 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {

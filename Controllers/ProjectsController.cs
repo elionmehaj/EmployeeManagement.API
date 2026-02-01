@@ -1,10 +1,12 @@
 using EmployeeManagement.API.Data;
 using EmployeeManagement.API.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManagement.API.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class ProjectsController : ControllerBase
@@ -31,6 +33,7 @@ public class ProjectsController : ControllerBase
         return Ok(project);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<ActionResult<Project>> Create(Project project)
     {
@@ -40,6 +43,7 @@ public class ProjectsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = project.Id }, project);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, Project project)
     {
@@ -54,6 +58,7 @@ public class ProjectsController : ControllerBase
         return NoContent();
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
