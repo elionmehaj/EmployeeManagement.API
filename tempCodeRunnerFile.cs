@@ -8,7 +8,6 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -47,7 +46,6 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     )
 );
 
-// JWT settings
 var jwtSection = builder.Configuration.GetSection("Jwt");
 var jwtKey = jwtSection["Key"]!;
 var jwtIssuer = jwtSection["Issuer"]!;
@@ -72,6 +70,7 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -81,9 +80,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAuthorization();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
 
 app.MapControllers();
 app.Run();
