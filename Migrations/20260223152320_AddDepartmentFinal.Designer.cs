@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EmployeeManagement.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260223145147_AddDepartmentOnly")]
-    partial class AddDepartmentOnly
+    [Migration("20260223152320_AddDepartmentFinal")]
+    partial class AddDepartmentFinal
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

@@ -5,17 +5,17 @@
 namespace EmployeeManagement.API.Migrations
 {
     /// <inheritdoc />
-    public partial class AddDepartmentOnly : Migration
+    public partial class AddDepartmentFinal : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            /* migrationBuilder.AddColumn<int>(
+            migrationBuilder.AddColumn<int>(
                 name: "Department",
                 table: "Users",
                 type: "int",
                 nullable: false,
-                defaultValue: 0); */
+                defaultValue: 0);
         }
 
         /// <inheritdoc />

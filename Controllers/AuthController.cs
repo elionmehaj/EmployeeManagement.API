@@ -87,6 +87,9 @@ public class AuthController : ControllerBase
         if (string.Equals(role, "employee", StringComparison.OrdinalIgnoreCase))
             return "Employee";
 
+        if (string.Equals(role, "hr", StringComparison.OrdinalIgnoreCase))
+            return "HR";
+
         // nëse vjen rol tjetër i panjohur, e bëjmë Employee (safe default)
         return "Employee";
     }

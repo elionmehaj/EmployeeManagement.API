@@ -57,11 +57,23 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "Admin")] 
-    public async Task<ActionResult<List<UserResponseDto>>> GetAll()
+    public async Task<ActionResult<PagedResponse<UserResponseDto>>> GetAll([FromQuery] PaginationFilter filter)
     {
-        var users = await _db.Users
-            .AsNoTracking()
+        var query = _db.Users.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+        {
+            var searchTerm = filter.SearchTerm.Trim().ToLower();
+            query = query.Where(u => 
+                u.FullName.ToLower().Contains(searchTerm) || 
+                u.Email.ToLower().Contains(searchTerm));
+        }
+
+        var totalRecords = await query.CountAsync();
+
+        var users = await query
+            .Skip((filter.PageNumber - 1) * filter.PageSize)
+            .Take(filter.PageSize)
             .Select(u => new UserResponseDto
             {
                 Id = u.Id,
@@ -72,11 +84,13 @@ public class UsersController : ControllerBase
             })
             .ToListAsync();
 
-        return Ok(users);
+        var response = new PagedResponse<UserResponseDto>(users, filter.PageNumber, filter.PageSize, totalRecords);
+
+        return Ok(response);
     }
 
     [HttpGet("department/{department}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin, HR")]
     public async Task<ActionResult<List<UserResponseDto>>> GetByDepartment(Department department)
     {
         var users = await _db.Users
@@ -122,7 +136,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin")] 
+    [Authorize(Roles = "Admin, HR")] 
     public async Task<ActionResult<UserResponseDto>> Create(CreateUserDto dto)
     {
         if (dto == null) return BadRequest("Invalid payload.");
@@ -160,14 +174,9 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Admin, HR")]
     public async Task<IActionResult> Update(int id, UpdateUserDto dto)
     {
-        var currentUserId = GetCurrentUserId();
-        if (currentUserId == null) return Unauthorized(); 
-
-        if (!IsAdmin() && id != currentUserId.Value)
-            return Forbid();
-
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null) return NotFound();
 
@@ -198,7 +207,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin, HR")]
     public async Task<IActionResult> Delete(int id)
     {
         var user = await _db.Users.FindAsync(id);
