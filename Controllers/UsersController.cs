@@ -1,14 +1,17 @@
 using EmployeeManagement.API.Data;
 using EmployeeManagement.API.Dtos.Users;
 using EmployeeManagement.API.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims; //
 
 namespace EmployeeManagement.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize] //
 public class UsersController : ControllerBase
 {
     private readonly AppDbContext _db;
@@ -19,8 +22,42 @@ public class UsersController : ControllerBase
         _db = db;
     }
 
-    // GET /api/users
+    private int? GetCurrentUserId()
+    {
+        var idValue =
+            User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+            User.FindFirstValue("sub");
+
+        return int.TryParse(idValue, out var id) ? id : null;
+    }
+
+    private bool IsAdmin() => User.IsInRole("Admin");
+
+    [HttpGet("me")]
+    public async Task<ActionResult<UserResponseDto>> Me()
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized(); 
+
+        var me = await _db.Users
+            .AsNoTracking()
+            .Where(u => u.Id == userId.Value)
+            .Select(u => new UserResponseDto
+            {
+                Id = u.Id,
+                FullName = u.FullName,
+                Email = u.Email,
+                Role = u.Role,
+                Department = u.Department.ToString()
+            })
+            .FirstOrDefaultAsync();
+
+        if (me == null) return NotFound();
+        return Ok(me);
+    }
+
     [HttpGet]
+    [Authorize(Roles = "Admin")] 
     public async Task<ActionResult<List<UserResponseDto>>> GetAll()
     {
         var users = await _db.Users
@@ -30,17 +67,43 @@ public class UsersController : ControllerBase
                 Id = u.Id,
                 FullName = u.FullName,
                 Email = u.Email,
-                Role = u.Role
+                Role = u.Role,
+                Department = u.Department.ToString()
             })
             .ToListAsync();
 
         return Ok(users);
     }
 
-    // GET /api/users/{id}
+    [HttpGet("department/{department}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<List<UserResponseDto>>> GetByDepartment(Department department)
+    {
+        var users = await _db.Users
+            .AsNoTracking()
+            .Where(u => u.Department == department)
+            .Select(u => new UserResponseDto
+            {
+                Id = u.Id,
+                FullName = u.FullName,
+                Email = u.Email,
+                Role = u.Role,
+                Department = u.Department.ToString()
+            })
+            .ToListAsync();
+
+        return Ok(users);
+    }
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<UserResponseDto>> GetById(int id)
     {
+        var currentUserId = GetCurrentUserId();
+        if (currentUserId == null) return Unauthorized(); 
+
+        if (!IsAdmin() && id != currentUserId.Value)
+            return Forbid(); 
+
         var user = await _db.Users
             .AsNoTracking()
             .Where(u => u.Id == id)
@@ -49,7 +112,8 @@ public class UsersController : ControllerBase
                 Id = u.Id,
                 FullName = u.FullName,
                 Email = u.Email,
-                Role = u.Role
+                Role = u.Role,
+                Department = u.Department.ToString()
             })
             .FirstOrDefaultAsync();
 
@@ -57,18 +121,25 @@ public class UsersController : ControllerBase
         return Ok(user);
     }
 
-    // POST /api/users
     [HttpPost]
+    [Authorize(Roles = "Admin")] 
     public async Task<ActionResult<UserResponseDto>> Create(CreateUserDto dto)
     {
-        var emailExists = await _db.Users.AnyAsync(u => u.Email == dto.Email);
+        if (dto == null) return BadRequest("Invalid payload.");
+
+        var emailNormalized = dto.Email?.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(emailNormalized))
+            return BadRequest("Email is required."); 
+
+        var emailExists = await _db.Users.AnyAsync(u => u.Email == emailNormalized);
         if (emailExists) return BadRequest("Email already exists.");
 
         var user = new User
         {
-            FullName = dto.FullName.Trim(),
-            Email = dto.Email.Trim().ToLowerInvariant(),
-            Role = string.IsNullOrWhiteSpace(dto.Role) ? "Employee" : dto.Role.Trim()
+            FullName = dto.FullName?.Trim() ?? "",
+            Email = emailNormalized,
+            Role = string.IsNullOrWhiteSpace(dto.Role) ? "Employee" : dto.Role.Trim(),
+            Department = dto.Department
         };
 
         user.PasswordHash = _hasher.HashPassword(user, dto.Password);
@@ -81,16 +152,22 @@ public class UsersController : ControllerBase
             Id = user.Id,
             FullName = user.FullName,
             Email = user.Email,
-            Role = user.Role
+            Role = user.Role,
+            Department = user.Department.ToString()
         };
 
         return CreatedAtAction(nameof(GetById), new { id = user.Id }, response);
     }
 
-    // PUT /api/users/{id}
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, UpdateUserDto dto)
     {
+        var currentUserId = GetCurrentUserId();
+        if (currentUserId == null) return Unauthorized(); 
+
+        if (!IsAdmin() && id != currentUserId.Value)
+            return Forbid();
+
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null) return NotFound();
 
@@ -100,7 +177,16 @@ public class UsersController : ControllerBase
 
         user.FullName = dto.FullName.Trim();
         user.Email = emailNormalized;
-        user.Role = string.IsNullOrWhiteSpace(dto.Role) ? user.Role : dto.Role.Trim();
+
+        if (!string.IsNullOrWhiteSpace(dto.Role))
+        {
+            user.Role = dto.Role.Trim();
+        }
+
+        if (dto.Department.HasValue)
+        {
+            user.Department = dto.Department.Value;
+        }
 
         if (!string.IsNullOrWhiteSpace(dto.Password))
         {
@@ -111,15 +197,12 @@ public class UsersController : ControllerBase
         return NoContent();
     }
 
-    // DELETE /api/users/{id}
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)
     {
         var user = await _db.Users.FindAsync(id);
         if (user == null) return NotFound();
-
-        // Opsionale: para fshirjes, mund të "unassign" tasks.
-        // Por ti ke OnDelete(SetNull) te AppDbContext, kështu që është OK.
 
         _db.Users.Remove(user);
         await _db.SaveChangesAsync();

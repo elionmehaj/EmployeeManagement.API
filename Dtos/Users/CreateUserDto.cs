@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using EmployeeManagement.API.Models;
 
 namespace EmployeeManagement.API.Dtos.Users;
 
@@ -16,4 +17,7 @@ public class CreateUserDto
 
     [MaxLength(50)]
     public string Role { get; set; } = "Employee";
+
+    [Required]
+    public Department Department { get; set; }
 }

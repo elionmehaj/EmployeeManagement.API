@@ -15,16 +15,21 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+
+        // ✅ ekzistuese: Email unik
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)
             .IsUnique();
 
+        // ✅ ekzistuese: Task -> Project (Cascade)
         modelBuilder.Entity<TaskItem>()
             .HasOne(t => t.Project)
             .WithMany(p => p.Tasks)
             .HasForeignKey(t => t.ProjectId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // ✅ ekzistuese: Task -> AssignedUser (SetNull)
+        // Kërkon AssignedUserId të jetë nullable (int?)
         modelBuilder.Entity<TaskItem>()
             .HasOne(t => t.AssignedUser)
             .WithMany(u => u.Tasks)

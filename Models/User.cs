@@ -9,7 +9,9 @@ public class User
 
     public string PasswordHash { get; set; } = string.Empty;
 
-    public string Role { get; set; } = "Employee"; // Admin, Manager, Employee
+    public string Role { get; set; } = "Employee";
+
+    public Department Department { get; set; }
 
     public List<TaskItem> Tasks { get; set; } = new();
 }

@@ -13,4 +13,5 @@ public class TaskItem
 
     public int? AssignedUserId { get; set; }
     public User? AssignedUser { get; set; }
+
 }
